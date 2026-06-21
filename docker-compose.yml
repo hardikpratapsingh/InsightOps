@@ -3,7 +3,6 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16
-    container_name: insightops-postgres
     environment:
       POSTGRES_DB: insightops
       POSTGRES_USER: postgres
@@ -12,10 +11,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   backend:
-    build: ./backend
-    container_name: insightops-backend
+    build:
+      context: ./backend
     ports:
       - "5000:5000"
     environment:
@@ -25,14 +25,16 @@ services:
       DB_PASSWORD: Hardik@123
     depends_on:
       - postgres
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
-    container_name: insightops-frontend
+    build:
+      context: ./frontend
     ports:
       - "5174:5173"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

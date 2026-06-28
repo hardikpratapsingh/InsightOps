@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -21,20 +22,53 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                    cd ${WORKSPACE}
-                    docker compose down || true
-                    docker compose up -d
-                '''
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_FILE
+
+                        echo "========== Kubernetes Cluster =========="
+                        kubectl get nodes
+
+                        echo "========== Deploy PostgreSQL =========="
+                        kubectl apply -f kubernetes/postgres.yaml
+
+                        echo "========== Deploy Backend =========="
+                        kubectl apply -f kubernetes/backend-deployment.yaml
+
+                        echo "========== Deploy Frontend =========="
+                        kubectl apply -f kubernetes/frontend-deployment.yaml
+
+                        echo "========== Pods =========="
+                        kubectl get pods
+
+                        echo "========== Services =========="
+                        kubectl get svc
+                    '''
+                }
             }
         }
 
-        stage('Verify') {
+        stage('Verify Docker Images') {
             steps {
                 sh 'docker images | grep insightops'
             }
+        }
+    }
+
+    post {
+
+        success {
+            echo '🎉 Deployment Successful!'
+        }
+
+        failure {
+            echo '❌ Deployment Failed!'
+        }
+
+        always {
+            echo 'Pipeline Finished.'
         }
     }
 }
